@@ -1,33 +1,57 @@
-import { Link, Tabs } from 'expo-router';
+// app/(tabs)/_layout.tsx
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import HomeTab from './HomeTab';
+import ProfileTab from './ProfileTab';
+import WatchTab from './WatchTab';
+import { Ionicons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { HeaderButton } from '../../components/HeaderButton';
-import { TabBarIcon } from '../../components/TabBarIcon';
+const Tab = createBottomTabNavigator();
 
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
-    <Tabs
+    <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: 'black',
-      }}>
-      <Tabs.Screen
-        name="index"
+        headerShown: false, // Hide default top header
+        tabBarShowLabel: false, // Hide labels
+        tabBarStyle: {
+          backgroundColor: '#1a1a2e', // Dark background color for the tab bar
+          borderTopWidth: 0,
+          height: 60,
+          paddingBottom: 10,
+          paddingTop: 10,
+        },
+        tabBarActiveTintColor: '#FF6A3D', // Active icon color (orange as per design)
+        tabBarInactiveTintColor: '#FFFFFF', // Inactive icon color (white)
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeTab}
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <HeaderButton />
-            </Link>
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home-filled" color={color} size={size} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="two"
+      <Tab.Screen
+        name="Watch"
+        component={WatchTab}
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="play-circle" color={color} size={size} />
+          ),
         }}
       />
-    </Tabs>
+      <Tab.Screen
+        name="Profile"
+        component={ProfileTab}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" color={color} size={size} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 }
