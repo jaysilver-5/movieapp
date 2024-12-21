@@ -11,12 +11,14 @@ interface Movie {
   id: string;
   title: string;
   posterUrl: string;
+  bannerUrl?: string; // Added this field
   synopsis?: string;
   releaseDate?: string;
   trailerUrl?: string;
   downloadUrl?: string;
   categories?: string[];
 }
+
 
 // Zustand Store with TypeScript
 interface MovieStore {
@@ -67,19 +69,25 @@ export default function HomeTab() {
             <Text style={styles.highlight}>Stream</Text> Everywhere
           </Text>
           <View style={styles.streamCard}>
-            <Image source={require('../../assets/stream.png')} style={styles.streamImage} />
+            <Image
+              source={{ uri: movies[movies.length - 1]?.bannerUrl || '' }}
+              style={styles.streamImage}
+            />
             <TouchableOpacity
               style={styles.streamButton}
-              onPress={() => router.push(`/MovieDetail/${movies[0]?.id}`)} // Example: Open first movie
+              onPress={() => router.push(`/MovieDetail/${movies[movies.length - 1]?.id}`)}
             >
               <AntDesign name="play" size={24} color="#FF6A3D" />
               <View>
                 <Text style={styles.continueText}>Continue With</Text>
-                <Text style={styles.movieTitle}>{movies[0]?.title || 'Unknown Movie'}</Text>
+                <Text style={styles.movieTitle}>
+                  {movies[movies.length - 1]?.title || 'Unknown Movie'}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
         </View>
+
 
         {/* Trending Section */}
         <View style={styles.section}>
@@ -141,7 +149,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   streamButton: {
-    width: 200,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -152,6 +159,9 @@ const styles = StyleSheet.create({
     backdropFilter: 'blur(10px)',
     backgroundColor: '#dadada78',
     height: 50,
+    gap: 8,
+    paddingLeft: 16,
+    paddingRight: 16,
   },
   continueText: {
     color: '#BCBCBC',
