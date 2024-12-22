@@ -21,5 +21,8 @@ export const useMyListStore = create<MyListState>((set, get) => ({
   loadList: async () => {
     const storedList = await AsyncStorage.getItem('myList');
     set({ myList: storedList ? JSON.parse(storedList) : [] });
+    console.log(myList);
   },
+
+
 }));

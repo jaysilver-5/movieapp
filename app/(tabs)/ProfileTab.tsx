@@ -1,7 +1,22 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, FlatList, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
-import { auth, db } from "../../firebase/firebase";
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+} from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { auth } from '../../firebase/firebase';
+import { useMyListStore } from '../../store/myListStore';
+import { useRouter, Stack } from 'expo-router';
+import { db } from '../../firebase/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+
 
 const userData = {
   name: 'John Doe',
@@ -9,36 +24,53 @@ const userData = {
   avatar: 'https://i.pravatar.cc/150?img=4',
 };
 
-const myList = [
-  { title: 'Inception', image: 'https://example.com/inception.jpg' },
-  { title: 'The Dark Knight', image: 'https://example.com/dark-knight.jpg' },
-  // Add more items
-];
-
 const downloadedMovies = [
   { title: 'Soul', image: 'https://example.com/soul.jpg' },
   { title: 'Avatar', image: 'https://example.com/avatar.jpg' },
-  // Add more items
 ];
-
-const continueWatching = [
-  { title: 'Breaking Bad', image: 'https://example.com/breaking-bad.jpg', progress: '50%' },
-  { title: 'The Office', image: 'https://example.com/the-office.jpg', progress: '80%' },
-  // Add more items
-];
-
 
 const ProfilePage = () => {
+  const [movies, setMovies] = useState([]);
+  const { myList, loadList } = useMyListStore(); // Access myList and loadList from the store
+  const router = useRouter();
+  console.log(movies)
+
+  useEffect(() => {
+    // Load the list when the component mounts
+    loadList();
+  }, [loadList]);
+
+  useEffect(() => {
+    // Log myList whenever it changes
+    console.log('My List:', myList);
+  }, [myList]);
+
   const handleSignout = async () => {
     await auth.signOut();
   };
 
-  const renderMovieItem = (item: { title: string; image: string }) => (
-    <TouchableOpacity style={styles.movieCard}>
-      <Image source={{ uri: item.image }} style={styles.movieImage} />
-      <Text style={styles.movieTitle}>{item.title}</Text>
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+      const fetchMoviesFromList = async () => {
+        try {
+          const moviePromises = myList.map(async (id) => {
+            const docRef = doc(db, 'movies', id);
+            const movieDoc = await getDoc(docRef);
+            return movieDoc.exists() ? { id, ...movieDoc.data() } : null;
+          });
+
+          const fetchedMovies = (await Promise.all(moviePromises)).filter(Boolean); // Remove null values
+          setMovies(fetchedMovies);
+        } catch (error) {
+          console.error('Error fetching movies:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchMoviesFromList();
+      console.log(movies)
+    }, []);
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -53,33 +85,43 @@ const ProfilePage = () => {
         <Image source={{ uri: userData.avatar }} style={styles.avatar} />
         <Text style={styles.userName}>{userData.name}</Text>
         <Text style={styles.userHandle}>{userData.username}</Text>
-        <TouchableOpacity onPress={handleSignout} className='w-24 h-10 mt-4 rounded-full border border-[#FF6A3D] text-[12px] flex items-center justify-center'>
-          <Text className='text-[#fff] text-[15px] font-semibold'>Sign Out</Text>
+        <TouchableOpacity onPress={handleSignout} style={styles.signOutButton}>
+          <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
-
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* My List Section */}
         <Text style={styles.sectionTitle}>My List</Text>
-        <FlatList
-          horizontal
-          data={myList}
-          renderItem={({ item }) => renderMovieItem(item)}
-          keyExtractor={(item) => item.title}
-          showsHorizontalScrollIndicator={false}
-        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {movies.map((movie) => (
+            <TouchableOpacity
+              key={movie.id || Math.random().toString()}
+              style={styles.movieCard}
+              onPress={() => router.push(`/MovieDetail/${movie.id}`)}
+            >
+              <Image source={{ uri: movie.posterUrl }} style={styles.movieImage} />
+              <View style={styles.titleContainer}>
+                <Text style={styles.movieTitleText}>{movie.title}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {/* Downloaded Movies Section */}
         <Text style={styles.sectionTitle}>Downloaded Movies</Text>
         <FlatList
           horizontal
           data={downloadedMovies}
-          renderItem={({ item }) => renderMovieItem(item)}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.movieCard}>
+              <Image source={{ uri: item.image }} style={styles.movieImage} />
+              <Text style={styles.movieTitle}>{item.title}</Text>
+            </TouchableOpacity>
+          )}
           keyExtractor={(item) => item.title}
           showsHorizontalScrollIndicator={false}
         />
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,12 +159,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   movieCard: {
-    marginRight: 15,
-    alignItems: 'center',
+    width: 150,
+    marginRight: 16,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
   },
   movieImage: {
-    width: 100,
-    height: 150,
+    width: '100%',
+    height: 200,
     borderRadius: 10,
   },
   movieTitle: {
@@ -131,30 +176,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
   },
-  continueCard: {
-    marginRight: 15,
+  titleContainer: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 20,
+    backgroundColor: '#dadada78',
+    borderRadius: 15,
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  movieTitleText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  signOutButton: {
+    width: 100,
+    height: 40,
+    marginTop: 20,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#FF6A3D',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  continueImage: {
-    width: 100,
-    height: 150,
-    borderRadius: 10,
-    position: 'relative',
-  },
-  progressOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    height: 5,
-    backgroundColor: '#444',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: 'orange',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-  },
+  signOutText: { color: 'white', fontSize: 15, fontWeight: 'bold' },
 });

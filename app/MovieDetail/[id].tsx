@@ -52,7 +52,6 @@ const MovieDetail: React.FC = () => {
   const router = useRouter();
   const { myList, toggleMovie, loadList } = useMyListStore();
   const isInMyList = myList.includes(id as string);
-  console.log(myList)
 
   // Fetch movie details
   const fetchMovie = async (id: string) => {
