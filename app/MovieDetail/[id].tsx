@@ -1,3 +1,4 @@
+import styles from './MovieDetail.styles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -12,10 +13,12 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AntDesign from '@expo/vector-icons/AntDesign'
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import { useMyListStore } from '../../store/myListStore';
 
 // Define types
 interface Episode {
@@ -47,6 +50,9 @@ const MovieDetail: React.FC = () => {
   const [playing, setPlaying] = useState<boolean>(false);
   const { width } = Dimensions.get('window');
   const router = useRouter();
+  const { myList, toggleMovie, loadList } = useMyListStore();
+  const isInMyList = myList.includes(id as string);
+  console.log(myList)
 
   // Fetch movie details
   const fetchMovie = async (id: string) => {
@@ -88,6 +94,14 @@ const MovieDetail: React.FC = () => {
       console.error('Error fetching related movies:', error);
     }
   };
+
+    useEffect(() => {
+      loadList(); // Load the persisted list when the component mounts
+    }, []);
+
+    const handleToggleMyList = () => {
+      toggleMovie(id as string);
+    };
 
   useEffect(() => {
     if (id) fetchMovie(id as string);
@@ -148,8 +162,24 @@ const MovieDetail: React.FC = () => {
       <Text style={styles.title}>{movie.title}</Text>
 
       <View style={styles.infoContainer}>
-        <Text style={styles.label}>Release Date:</Text>
-        <Text style={styles.value}>{movie.releaseDate}</Text>
+        <View className='flex flex-row justifyContent items-center'>
+            <View style={styles.date}>
+                <Text style={styles.label}>Release Date:</Text>
+                <Text style={styles.value}>{movie.releaseDate}</Text>
+            </View>
+
+            <TouchableOpacity
+                style={[styles.myListButton, isInMyList && styles.myListButtonActive]}
+                onPress={handleToggleMyList}
+
+            >
+                <Text style={styles.myListButtonText}>
+                    {isInMyList ? <AntDesign name="close" size={20} color="white" /> : <AntDesign name="plus" size={20} className='font-bold' color="white" />}
+
+                </Text>
+                <Text style={styles.myListButtonText}>My List</Text>
+            </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Genres:</Text>
         <View style={styles.genreContainer}>
@@ -209,162 +239,5 @@ const MovieDetail: React.FC = () => {
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-      safeArea: {
-          flex: 1,
-          backgroundColor: '#1C1C2A', // Ensure the safe area background is white
-      },
-      loader: {
-        flex: 1,
-        backgroundColor: '#1C1C2A',
-        justifyContent: 'center',
-      },
-      container: {
-        flexGrow: 1,
-        backgroundColor: '#1C1C2A',
-        padding: 16,
-      },
-      header: {
-        position: 'absolute',
-        top: 40,
-        left: 16,
-        zIndex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        padding: 8,
-        borderRadius: 50,
-      },
-      mediaContainer: {
-        width: '100%',
-        height: 250,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-      },
-      videoOverlayContainer: {
-        position: 'relative',
-        width: '100%',
-        height: 250,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      bannerImage: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-        borderRadius: 8,
-      },
-      playButtonContainer: {
-        position: 'absolute',
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        textAlign: 'center',
-        marginTop: 16,
-      },
-      infoContainer: {
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 10,
-        backgroundColor: '#2C2C3A',
-      },
-      label: {
-        color: '#AAAAAA',
-        fontSize: 14,
-      },
-      value: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        marginBottom: 8,
-      },
-      genreContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-      },
-      genre: {
-        backgroundColor: '#40405A',
-        color: '#FFFFFF',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        marginRight: 8,
-        borderRadius: 8,
-        marginTop: 4,
-      },
-      synopsisContainer: {
-        marginTop: 16,
-      },
-      synopsisLabel: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-      },
-      synopsisText: {
-        color: '#CCCCCC',
-        marginTop: 8,
-      },
-      episodesContainer: {
-        marginTop: 16,
-      },
-      episodesLabel: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        marginBottom: 8,
-      },
-      episodeCard: {
-        backgroundColor: '#2C2C3A',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 8,
-      },
-      episodeTitle: {
-        color: '#FFFFFF',
-        fontSize: 16,
-      },
-  relatedMoviesContainer: {
-    marginTop: 16,
-  },
-  relatedMoviesLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  relatedMovieCard: {
-    width: 120,
-    marginRight: 8,
-  },
-  relatedMovieImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: 8,
-    resizeMode: 'cover',
-  },
-  relatedMovieTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  downloadButton: {
-    marginTop: 16,
-    backgroundColor: '#FF6A3D',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  downloadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  youtubeplay: {
-      marginTop: 32,
-      }
-});
 
 export default MovieDetail;
