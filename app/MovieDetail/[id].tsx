@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, StyleSheet, Dimensions, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Dimensions,
+  Alert,
+  FlatList,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 
 // Define types
@@ -31,20 +42,24 @@ interface Movie {
 const MovieDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [relatedMovies, setRelatedMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [playing, setPlaying] = useState<boolean>(false);
   const { width } = Dimensions.get('window');
   const router = useRouter();
-  const { movieId } = useLocalSearchParams();
 
-  // Fetch movie details from Firestore
+  // Fetch movie details
   const fetchMovie = async (id: string) => {
     try {
       const docRef = doc(db, 'movies', id);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setMovie({ id: docSnap.id, ...docSnap.data() } as Movie);
+        const fetchedMovie = { id: docSnap.id, ...docSnap.data() } as Movie;
+        setMovie(fetchedMovie);
+
+        // Fetch related movies
+        fetchRelatedMovies(fetchedMovie.categories);
       } else {
         Alert.alert('Movie not found');
         router.back();
@@ -58,30 +73,26 @@ const MovieDetail: React.FC = () => {
     }
   };
 
+  const fetchRelatedMovies = async (categories: string[]) => {
+    try {
+      const moviesRef = collection(db, 'movies');
+      const q = query(moviesRef, where('categories', 'array-contains-any', categories));
+      const querySnapshot = await getDocs(q);
+
+      const related = querySnapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Movie))
+        .filter((m) => m.id !== id); // Exclude the current movie
+
+      setRelatedMovies(related);
+    } catch (error) {
+      console.error('Error fetching related movies:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchMovieDetails = async () => {
-      try {
-        const docRef = doc(db, 'movies', id as string);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setMovie({ id: docSnap.id, ...docSnap.data() } as Movie);
-        } else {
-          console.log('Movie not found');
-        }
-      } catch (error) {
-        console.error('Error fetching movie details:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMovieDetails();
+    if (id) fetchMovie(id as string);
   }, [id]);
 
-
-  // Handle YouTube state changes
   const onStateChange = useCallback((state: string) => {
     if (state === 'ended') {
       setPlaying(false);
@@ -89,22 +100,14 @@ const MovieDetail: React.FC = () => {
     }
   }, []);
 
-  // Extract YouTube video ID from the trailer URL
   const extractVideoId = (url?: string) => {
     if (!url) return '';
     const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
     return match ? match[1] : '';
   };
 
-  // Loading state
   if (loading) {
-    return (
-      <ActivityIndicator
-        size="large"
-        color="#FF6A3D"
-        style={styles.loader}
-      />
-    );
+    return <ActivityIndicator size="large" color="#FF6A3D" style={styles.loader} />;
   }
 
   if (!movie) {
@@ -117,21 +120,21 @@ const MovieDetail: React.FC = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header with Back Button */}
       <TouchableOpacity style={styles.header} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Media Section: Trailer or Banner Image */}
       <View style={styles.mediaContainer}>
         {playing ? (
-          <YoutubePlayer
-            height={250}
-            width={width - 32}
-            play={playing}
-            videoId={extractVideoId(movie.trailerUrl)}
-            onChangeState={onStateChange}
-          />
+            <View style={styles.youtubeplay}>
+              <YoutubePlayer
+                height={250}
+                width={width - 32}
+                play={playing}
+                videoId={extractVideoId(movie.trailerUrl)}
+                onChangeState={onStateChange}
+              />
+            </View>
         ) : (
           <View style={styles.videoOverlayContainer}>
             <Image source={{ uri: movie.bannerUrl }} style={styles.bannerImage} />
@@ -142,10 +145,8 @@ const MovieDetail: React.FC = () => {
         )}
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>{movie.title}</Text>
 
-      {/* Info Section */}
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Release Date:</Text>
         <Text style={styles.value}>{movie.releaseDate}</Text>
@@ -160,14 +161,12 @@ const MovieDetail: React.FC = () => {
         </View>
       </View>
 
-      {/* Synopsis Section */}
       <View style={styles.synopsisContainer}>
         <Text style={styles.synopsisLabel}>Synopsis</Text>
         <Text style={styles.synopsisText}>{movie.synopsis}</Text>
       </View>
 
-      {/* Episodes Section for Series */}
-      {movie.series && movie.episodes && (
+      {movie.series && movie.episodes ? (
         <View style={styles.episodesContainer}>
           <Text style={styles.episodesLabel}>Episodes</Text>
           {movie.episodes.map((episode, index) => (
@@ -175,132 +174,197 @@ const MovieDetail: React.FC = () => {
               <Text style={styles.episodeTitle}>
                 S{episode.season} E{episode.episode}: {episode.title}
               </Text>
-              <TouchableOpacity onPress={() => Alert.alert('Download', 'Download functionality not implemented.')}>
-                <Text style={styles.downloadLink}>Download</Text>
+              <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Download link pressed!')}>
+                <Text style={styles.downloadButtonText}>Download</Text>
               </TouchableOpacity>
             </View>
           ))}
         </View>
+      ) : (
+        movie.downloadUrl && (
+          <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Download link pressed!')}>
+            <Text style={styles.downloadButtonText}>Download Movie</Text>
+          </TouchableOpacity>
+        )
       )}
+
+      <View style={styles.relatedMoviesContainer}>
+        <Text style={styles.relatedMoviesLabel}>Related Movies</Text>
+        <FlatList
+          data={relatedMovies}
+          horizontal
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.relatedMovieCard}
+              onPress={() => router.push(`/movies/${item.id}`)}
+            >
+              <Image source={{ uri: item.posterUrl }} style={styles.relatedMovieImage} />
+              <Text style={styles.relatedMovieTitle}>{item.title}</Text>
+            </TouchableOpacity>
+          )}
+          showsHorizontalScrollIndicator={false}
+        />
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  loader: {
-    flex: 1,
-    backgroundColor: '#1C1C2A',
-    justifyContent: 'center',
+      safeArea: {
+          flex: 1,
+          backgroundColor: '#1C1C2A', // Ensure the safe area background is white
+      },
+      loader: {
+        flex: 1,
+        backgroundColor: '#1C1C2A',
+        justifyContent: 'center',
+      },
+      container: {
+        flexGrow: 1,
+        backgroundColor: '#1C1C2A',
+        padding: 16,
+      },
+      header: {
+        position: 'absolute',
+        top: 40,
+        left: 16,
+        zIndex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: 8,
+        borderRadius: 50,
+      },
+      mediaContainer: {
+        width: '100%',
+        height: 250,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+      },
+      videoOverlayContainer: {
+        position: 'relative',
+        width: '100%',
+        height: 250,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      bannerImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+        borderRadius: 8,
+      },
+      playButtonContainer: {
+        position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        textAlign: 'center',
+        marginTop: 16,
+      },
+      infoContainer: {
+        marginTop: 16,
+        padding: 16,
+        borderRadius: 10,
+        backgroundColor: '#2C2C3A',
+      },
+      label: {
+        color: '#AAAAAA',
+        fontSize: 14,
+      },
+      value: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        marginBottom: 8,
+      },
+      genreContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+      },
+      genre: {
+        backgroundColor: '#40405A',
+        color: '#FFFFFF',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        marginRight: 8,
+        borderRadius: 8,
+        marginTop: 4,
+      },
+      synopsisContainer: {
+        marginTop: 16,
+      },
+      synopsisLabel: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+      },
+      synopsisText: {
+        color: '#CCCCCC',
+        marginTop: 8,
+      },
+      episodesContainer: {
+        marginTop: 16,
+      },
+      episodesLabel: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginBottom: 8,
+      },
+      episodeCard: {
+        backgroundColor: '#2C2C3A',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 8,
+      },
+      episodeTitle: {
+        color: '#FFFFFF',
+        fontSize: 16,
+      },
+  relatedMoviesContainer: {
+    marginTop: 16,
   },
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#1C1C2A',
-    padding: 16,
-  },
-  header: {
-    position: 'absolute',
-    top: 40,
-    left: 16,
-    zIndex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
-    borderRadius: 50,
-  },
-  mediaContainer: {
-    width: '100%',
-    height: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  videoOverlayContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    borderRadius: 8,
-  },
-  playButtonContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
+  relatedMoviesLabel: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  infoContainer: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 10,
-    backgroundColor: '#2C2C3A',
-  },
-  label: {
-    color: '#AAAAAA',
-    fontSize: 14,
-  },
-  value: {
-    color: '#FFFFFF',
-    fontSize: 16,
     marginBottom: 8,
   },
-  genreContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  genre: {
-    backgroundColor: '#40405A',
-    color: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  relatedMovieCard: {
+    width: 120,
     marginRight: 8,
+  },
+  relatedMovieImage: {
+    width: '100%',
+    height: 180,
     borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  relatedMovieTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
     marginTop: 4,
+    textAlign: 'center',
   },
-  synopsisContainer: {
+  downloadButton: {
     marginTop: 16,
-  },
-  synopsisLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  synopsisText: {
-    color: '#CCCCCC',
-    marginTop: 8,
-  },
-  episodesContainer: {
-    marginTop: 16,
-  },
-  episodesLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  episodeCard: {
-    backgroundColor: '#2C2C3A',
+    backgroundColor: '#FF6A3D',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 8,
+    alignItems: 'center',
   },
-  episodeTitle: {
+  downloadButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: 'bold',
   },
-  downloadLink: {
-    color: '#FF6A3D',
-    marginTop: 4,
-  },
+  youtubeplay: {
+      marginTop: 32,
+      }
 });
 
 export default MovieDetail;
