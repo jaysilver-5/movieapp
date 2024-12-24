@@ -1,15 +1,14 @@
 import { create } from 'zustand';
 
-export interface BearState {
-  bears: number;
-  increasePopulation: () => void;
-  removeAllBears: () => void;
-  updateBears: (newBears: number) => void;
+interface UserState {
+  user: { uid: string | null; isAnonymous: boolean } | null;
+  setUser: (user: { uid: string | null; isAnonymous: boolean }) => void;
+  clearUser: () => void;
 }
 
-export const useStore = create<BearState>((set) => ({
-  bears: 0,
-  increasePopulation: () => set((state) => ({ bears: state.bears + 1 })),
-  removeAllBears: () => set({ bears: 0 }),
-  updateBears: (newBears) => set({ bears: newBears }),
+export const useUserStore = create<UserState>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null }),
 }));
+

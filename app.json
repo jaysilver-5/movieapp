@@ -37,6 +37,14 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.anonymous.moieappfinal"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e7325699-ad5a-429a-92a1-4f944d82c9b5"
+      }
     }
   }
 }

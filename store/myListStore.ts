@@ -3,8 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface MyListState {
   myList: string[];
-  toggleMovie: (id: string) => void;
+  toggleMovie: (id: string) => Promise<void>;
   loadList: () => Promise<void>;
+  clearList: () => void;
 }
 
 export const useMyListStore = create<MyListState>((set, get) => ({
@@ -21,8 +22,6 @@ export const useMyListStore = create<MyListState>((set, get) => ({
   loadList: async () => {
     const storedList = await AsyncStorage.getItem('myList');
     set({ myList: storedList ? JSON.parse(storedList) : [] });
-    console.log(myList);
   },
-
-
+  clearList: () => set({ myList: [] }),
 }));

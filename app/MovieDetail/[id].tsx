@@ -11,6 +11,8 @@ import {
   Dimensions,
   Alert,
   FlatList,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AntDesign from '@expo/vector-icons/AntDesign'
@@ -52,6 +54,8 @@ const MovieDetail: React.FC = () => {
   const router = useRouter();
   const { myList, toggleMovie, loadList } = useMyListStore();
   const isInMyList = myList.includes(id as string);
+
+
 
   // Fetch movie details
   const fetchMovie = async (id: string) => {
@@ -132,110 +136,113 @@ const MovieDetail: React.FC = () => {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      <View style={styles.mediaContainer}>
-        {playing ? (
-            <View style={styles.youtubeplay}>
-              <YoutubePlayer
-                height={250}
-                width={width - 32}
-                play={playing}
-                videoId={extractVideoId(movie.trailerUrl)}
-                onChangeState={onStateChange}
-              />
-            </View>
-        ) : (
-          <View style={styles.videoOverlayContainer}>
-            <Image source={{ uri: movie.bannerUrl }} style={styles.bannerImage} />
-            <TouchableOpacity style={styles.playButtonContainer} onPress={() => setPlaying(true)}>
-              <Ionicons name="play-circle" size={80} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.title}>{movie.title}</Text>
-
-      <View style={styles.infoContainer}>
-        <View className='flex flex-row justifyContent items-center'>
-            <View style={styles.date}>
-                <Text style={styles.label}>Release Date:</Text>
-                <Text style={styles.value}>{movie.releaseDate}</Text>
-            </View>
-
-            <TouchableOpacity
-                style={[styles.myListButton, isInMyList && styles.myListButtonActive]}
-                onPress={handleToggleMyList}
-
-            >
-                <Text style={styles.myListButtonText}>
-                    {isInMyList ? <AntDesign name="close" size={20} color="white" /> : <AntDesign name="plus" size={20} className='font-bold' color="white" />}
-
-                </Text>
-                <Text style={styles.myListButtonText}>My List</Text>
-            </TouchableOpacity>
-        </View>
-
-        <Text style={styles.label}>Genres:</Text>
-        <View style={styles.genreContainer}>
-          {movie.categories.map((genre, index) => (
-            <Text key={index} style={styles.genre}>
-              {genre}
-            </Text>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.synopsisContainer}>
-        <Text style={styles.synopsisLabel}>Synopsis</Text>
-        <Text style={styles.synopsisText}>{movie.synopsis}</Text>
-      </View>
-
-      {movie.series && movie.episodes ? (
-        <View style={styles.episodesContainer}>
-          <Text style={styles.episodesLabel}>Episodes</Text>
-          {movie.episodes.map((episode, index) => (
-            <View key={index} style={styles.episodeCard}>
-              <Text style={styles.episodeTitle}>
-                S{episode.season} E{episode.episode}: {episode.title}
-              </Text>
-              <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Download link pressed!')}>
-                <Text style={styles.downloadButtonText}>Download</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      ) : (
-        movie.downloadUrl && (
-          <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Download link pressed!')}>
-            <Text style={styles.downloadButtonText}>Download Movie</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+        <ScrollView contentContainerStyle={styles.container}>
+          <TouchableOpacity style={styles.header} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
           </TouchableOpacity>
-        )
-      )}
 
-      <View style={styles.relatedMoviesContainer}>
-        <Text style={styles.relatedMoviesLabel}>Related Movies</Text>
-        <FlatList
-          data={relatedMovies}
-          horizontal
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.relatedMovieCard}
-              onPress={() => router.push(`/movies/${item.id}`)}
-            >
-              <Image source={{ uri: item.posterUrl }} style={styles.relatedMovieImage} />
-              <Text style={styles.relatedMovieTitle}>{item.title}</Text>
-            </TouchableOpacity>
+          <View style={styles.mediaContainer}>
+            {playing ? (
+                <View style={styles.youtubeplay}>
+                  <YoutubePlayer
+                    height={250}
+                    width={width - 32}
+                    play={playing}
+                    videoId={extractVideoId(movie.trailerUrl)}
+                    onChangeState={onStateChange}
+                  />
+                </View>
+            ) : (
+              <View style={styles.videoOverlayContainer}>
+                <Image source={{ uri: movie.bannerUrl }} style={styles.bannerImage} />
+                <TouchableOpacity style={styles.playButtonContainer} onPress={() => setPlaying(true)}>
+                  <Ionicons name="play-circle" size={80} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.title}>{movie.title}</Text>
+
+          <View style={styles.infoContainer}>
+            <View className='flex flex-row justifyContent items-center'>
+                <View style={styles.date}>
+                    <Text style={styles.label}>Release Date:</Text>
+                    <Text style={styles.value}>{movie.releaseDate}</Text>
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.myListButton, isInMyList && styles.myListButtonActive]}
+                    onPress={handleToggleMyList}
+
+                >
+                    <Text style={styles.myListButtonText}>
+                        {isInMyList ? <AntDesign name="close" size={20} color="white" /> : <AntDesign name="plus" size={20} className='font-bold' color="white" />}
+
+                    </Text>
+                    <Text style={styles.myListButtonText}>My List</Text>
+                </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Genres:</Text>
+            <View style={styles.genreContainer}>
+              {movie.categories.map((genre, index) => (
+                <Text key={index} style={styles.genre}>
+                  {genre}
+                </Text>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.synopsisContainer}>
+            <Text style={styles.synopsisLabel}>Synopsis</Text>
+            <Text style={styles.synopsisText}>{movie.synopsis}</Text>
+          </View>
+
+          {movie.series && movie.episodes ? (
+            <View style={styles.episodesContainer}>
+              <Text style={styles.episodesLabel}>Episodes</Text>
+              {movie.episodes.map((episode, index) => (
+                <View key={index} style={styles.episodeCard}>
+                  <Text style={styles.episodeTitle}>
+                    S{episode.season} E{episode.episode}: {episode.title}
+                  </Text>
+                  <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Movie set to download!')}>
+                    <Text style={styles.downloadButtonText}>Download</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            movie.downloadUrl && (
+              <TouchableOpacity style={styles.downloadButton} onPress={() => Alert.alert('Download', 'Download link pressed!')}>
+                <Text style={styles.downloadButtonText}>Download Movie</Text>
+              </TouchableOpacity>
+            )
           )}
-          showsHorizontalScrollIndicator={false}
-        />
-      </View>
-    </ScrollView>
+
+          <View style={styles.relatedMoviesContainer}>
+            <Text style={styles.relatedMoviesLabel}>Related Movies</Text>
+            <FlatList
+              data={relatedMovies}
+              horizontal
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.relatedMovieCard}
+                  onPress={() => router.push(`/movies/${item.id}`)}
+                >
+                  <Image source={{ uri: item.posterUrl }} style={styles.relatedMovieImage} />
+                  <Text style={styles.relatedMovieTitle}>{item.title}</Text>
+                </TouchableOpacity>
+              )}
+              showsHorizontalScrollIndicator={false}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
   );
 };
 

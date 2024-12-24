@@ -1,31 +1,65 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Image, TouchableOpacity, FlatList, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, ScrollView, Image, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase/firebase';
 
 const categories = [
-  'Movies', 'TV Series', 'Documentary', 'Sports', 'Animation', 'Kids', 'Comedy', 'Drama', 'Horror', 'Sci-Fi'
-];
-
-const movieItems = [
-  { id: '1', title: 'Soul', year: '2020', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'Animation' },
-  { id: '2', title: 'Knives Out', year: '2019', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpvn6U_-uaQ5eOA42BCRGK5Ofamo0yxtXCtw&s', category: 'Movies' },
-  { id: '3', title: 'Onward', year: '2020', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'Animation' },
-  { id: '4', title: 'Mulan', year: '2020', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'Movies' },
-  { id: '5', title: 'Stranger Things', year: '', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'TV Series' },
-  { id: '6', title: 'The Flash', year: '', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'TV Series' },
-  { id: '7', title: 'Money Heist', year: '', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'TV Series' },
-  { id: '8', title: 'Doctor Who', year: '', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNhbrdJc-8s2R0yvdMoM18LyWFcIkpHfYcyH7Exc4OlN7CLNfLPPvRc0vC087pepetHiE&usqp=CAU', category: 'TV Series' },
+  'All',
+  'Movies',
+  'TV Series',
+  'Documentary',
+  'Sports',
+  'Animation',
+  'Kids',
+  'Comedy',
+  'Drama',
+  'Horror',
+  'Sci-Fi',
 ];
 
 const TabContent = () => {
-  const [selectedCategory, setSelectedCategory] = useState('Movies');
+  const [movies, setMovies] = useState([]);
+  const [filteredMovies, setFilteredMovies] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Filter movieItems by category
-  const filteredMovies = movieItems.filter(movie => movie.category === selectedCategory);
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'movies'));
+        const fetchedMovies = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setMovies(fetchedMovies);
+        setFilteredMovies(fetchedMovies); // Default to all movies
+      } catch (error) {
+        console.error('Error fetching movies:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMovies();
+  }, []);
 
-  const renderCategory = (category: string) => (
+  useEffect(() => {
+    // Filter movies by category and search query
+    const categoryFilteredMovies = selectedCategory === 'All'
+      ? movies
+      : movies.filter((movie) => movie.categories?.includes(selectedCategory));
+
+    const searchFilteredMovies = categoryFilteredMovies.filter((movie) =>
+      movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    setFilteredMovies(searchFilteredMovies);
+  }, [selectedCategory, searchQuery, movies]);
+
+  const renderCategory = (category) => (
     <TouchableOpacity key={category} onPress={() => setSelectedCategory(category)}>
       <Text style={[styles.tabText, selectedCategory === category && styles.activeTab]}>
         {category}
@@ -33,19 +67,33 @@ const TabContent = () => {
     </TouchableOpacity>
   );
 
-  // Handle navigation to the MovieDetail screen
-  const navigateToDetails = (movieId: string) => {
+  const navigateToDetails = (movieId) => {
     router.push(`/MovieDetail/${movieId}`);
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ActivityIndicator size="large" color="#FF6A3D" style={styles.loader} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safeArea} className="w-full h-screen-safe">
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Sticky Header with Search */}
         <View style={styles.stickyHeader}>
           <Text style={styles.headerText}>Find Movies, TV series, and more..</Text>
-          <TextInput style={styles.searchInput} placeholder="Search for something..." placeholderTextColor="#888" />
-          
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for something..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
           {/* Horizontal Scroll for Categories */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
             {categories.map(renderCategory)}
@@ -61,9 +109,9 @@ const TabContent = () => {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.itemCard} onPress={() => navigateToDetails(item.id)}>
               <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="contain" />
+                <Image source={{ uri: item.posterUrl }} style={styles.itemImage} resizeMode="contain" />
               </View>
-              <Text style={styles.itemText}>{item.title} {item.year && `(${item.year})`}</Text>
+              <Text style={styles.itemText}>{item.title} {item.releaseDate && `(${item.releaseDate})`}</Text>
             </TouchableOpacity>
           )}
         />
@@ -72,15 +120,12 @@ const TabContent = () => {
   );
 };
 
-
 export default TabContent;
-
-
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1a1a2e', // Match background color to device menu
+    backgroundColor: '#1a1a2e',
   },
   container: { flex: 1, backgroundColor: '#1a1a2e' },
   stickyHeader: { padding: 16, backgroundColor: '#1a1a2e' },
@@ -91,16 +136,24 @@ const styles = StyleSheet.create({
   activeTab: { color: '#fff', borderBottomWidth: 2, borderBottomColor: 'orange' },
   itemsContainer: { paddingHorizontal: 10 },
   itemCard: { width: '48%', marginBottom: 12, marginHorizontal: '1%', borderRadius: 20 },
-  
-  // New styles for image container to ensure border radius with resizeMode 'contain'
   imageContainer: {
     width: '100%',
     borderRadius: 20,
-    overflow: 'hidden',  // Ensures the image stays within the container's border radius
+    overflow: 'hidden',
   },
   itemImage: {
     width: '100%',
     height: 200,
   },
   itemText: { color: '#fff', marginTop: 8, textAlign: 'center' },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    textAlign: 'center',
+    color: '#FFFFFF',
+    marginTop: 10,
+  },
 });
