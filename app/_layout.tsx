@@ -84,7 +84,7 @@ export default function RootLayout() {
           ]}
         >
           <Image
-            source={require("../assets/netflix_logo.png")} // Replace with your splash screen logo
+            source={require("../assets/logo.png")} // Replace with your splash screen logo
             style={styles.logo}
           />
           <Text style={styles.text}>...your movie collection.</Text>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logo: {
-    width: 240,
-    height: 70,
+    width: 235,
+    height: 305,
   },
 });
